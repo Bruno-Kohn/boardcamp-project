@@ -1,0 +1,4 @@
+/node_modules
+connect-database
+create-database
+destroy-database
