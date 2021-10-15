@@ -17,12 +17,26 @@ const connection = new Pool({
   database: "boardcamp",
 });
 
-/*const query = connection.query("SELECT * FROM boardcamp");
-query.then((result) => {
-  console.log(result.rows);
-});*/
+//----- LISTAR CATEGORIAS -----
 
-//----- ROTA DE TESTE -----
+app.get("/categories", async (req, res) => {
+  try {
+    const result = await connection.query("SELECT * FROM categories");
+    res.send(result.rows);
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500);
+  }
+});
+
+//----- INSERIR CATEGORIAS -----
+
+app.post("/categories", async (req, res) => {
+  const { name } = req.body;
+  connection.query("INSERT INTO categories (name) VALUES ($1);", [name]);
+});
+
+//----- ROTA DE TESTE ----- (APAGAR DEPOIS)
 
 app.get("/", (req, res) => {
   res.send("Testandoooooo");
