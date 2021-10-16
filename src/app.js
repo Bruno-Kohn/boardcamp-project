@@ -238,8 +238,71 @@ app.put("/customers/:id", async (req, res) => {
 //------------------------- LISTAR ALUGUEL -------------------------
 
 app.get("/rentals", async (req, res) => {
-  const result = await connection.query(`SELECT * FROM rentals;`);
-  res.send(result.rows[0]);
+  const { customerId, gameId } = req.query;
+  const rentalsQuery = `
+      SELECT rentals.*, customers.id AS "idCustomer", customers.name,
+      games.id AS "idGame", games.name AS "gameName", games."categoryId", categories.name AS "categoryName"
+      FROM rentals 
+      JOIN customers
+      ON rentals."customerId" = customers.id
+      JOIN games
+      ON rentals."gameId" = games.id
+      JOIN categories
+      ON games."categoryId" = categories.id
+  `;
+
+  try {
+    if (customerId) {
+      const customer = await connection.query(
+        `
+          ${rentalsQuery} WHERE rentals."customerId" = $1
+        `,
+        [customerId]
+      );
+      res.send(customer.rows[0]);
+      return;
+    }
+
+    if (gameId) {
+      const game = await connection.query(
+        `
+          ${rentalsQuery} WHERE rentals."gameId" = $1
+        `,
+        [gameId]
+      );
+      res.send(game.rows[0]);
+      return;
+    }
+
+    const result = await connection.query(rentalsQuery);
+    res.send(
+      result.rows.map((r) => {
+        return {
+          id: r.id,
+          customerId: r.customerId,
+          gameId: r.gameId,
+          rentDate: r.rentDate,
+          daysRented: r.daysRented,
+          returnDate: r.returnDate,
+          originalPrice: r.originalPrice,
+          delayFee: r.delayFee,
+          customer: {
+            id: r.idCustomer,
+            name: r.name,
+          },
+          game: {
+            id: r.idGame,
+            name: r.gameName,
+            categoryId: r.categoryId,
+            categoryName: r.categoryName,
+          },
+        };
+      })
+    );
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  }
 });
 
 //------------------------- INSERIR ALUGUEL -------------------------
