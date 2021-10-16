@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import pg from "pg";
 import Joi from "joi";
+import JoiDate from "@joi/date";
 
 const app = express();
 app.use(cors());
@@ -117,6 +118,52 @@ app.post("/games", async (req, res) => {
     await connection.query(
       'INSERT INTO games (name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ($1, $2, $3, $4, $5);',
       [name, image, stockTotal, categoryId, pricePerDay]
+    );
+    res.sendStatus(201);
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  }
+});
+
+//----- LISTAR CLIENTES -----
+
+app.get("/customers", async (req, res) => {
+    const result = await connection.query("SELECT * FROM customers");
+    res.send(result.rows);
+});
+
+//----- LISTAR CLIENTES POR ID -----
+
+app.get("/customers:id", async (req, res) => {
+});
+
+//----- INSERIR CLIENTES -----
+
+app.post("/customers", async (req, res) => {
+  const extendedJoi = Joi.extend(JoiDate);
+  const schema = Joi.object({
+    cpf: Joi.string().alphanum().min(11).max(11).required(),
+    phone: Joi.string().alphanum().min(10).max(11).required(),
+    name: Joi.string().min(1).required(),
+    birthday: extendedJoi.date().format('YYYY-MM-DD').required(), //REVER O FORMATO DA DATA
+  });
+
+  try {
+    const value = await schema.validateAsync(req.body);
+    const { cpf, phone, name, birthday } = value;
+    const result = await connection.query(
+      "SELECT * FROM customers WHERE cpf = $1",
+      [cpf]
+    );
+
+    if (result.rows[0]) {
+      return res.sendStatus(409);
+    }
+
+    await connection.query(
+      'INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4);',
+      [name, phone, cpf, birthday]
     );
     res.sendStatus(201);
   } catch (error) {
