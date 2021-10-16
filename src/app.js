@@ -197,10 +197,39 @@ app.post("/customers", async (req, res) => {
   }
 });
 
-//------------------------- ROTA DE TESTE ------------------------- (APAGAR DEPOIS)
+//------------------------- EDITAR CLIENTES -------------------------
 
-app.get("/", (req, res) => {
-  res.send("Testandoooooo");
+app.put("/customers/:id", async (req, res) => {
+  const { id } = req.params;
+  const extendedJoi = Joi.extend(JoiDate);
+  const schema = Joi.object({
+    cpf: Joi.string().alphanum().min(11).max(11).required(),
+    phone: Joi.string().alphanum().min(10).max(11).required(),
+    name: Joi.string().min(1).required(),
+    birthday: extendedJoi.date().format("YYYY-MM-DD").required(),
+  });
+
+  try {
+    const value = await schema.validateAsync(req.body);
+    const { name, phone, cpf, birthday } = value;
+
+    const resultId = await connection.query(
+      "SELECT * from customers WHERE id = $1",
+      [id]
+    );
+    if (resultId.rows.length === 0) {
+      return res.sendStatus(404);
+    }
+
+    await connection.query(
+      `UPDATE customers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5`,
+      [name, phone, cpf, birthday, id]
+    );
+    res.sendStatus(200);
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  }
 });
 
 //------------------------- PORTA DO SERVIDOR -------------------------
