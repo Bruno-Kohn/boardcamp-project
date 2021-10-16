@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-//----- CONECTANDO O BANCO -----
+//------------------------- CONECTANDO O BANCO -------------------------
 
 const { Pool } = pg;
 
@@ -20,7 +20,7 @@ const connection = new Pool({
   database: "boardcamp",
 });
 
-//----- LISTAR CATEGORIAS -----
+//------------------------- LISTAR CATEGORIAS -------------------------
 
 app.get("/categories", async (req, res) => {
   try {
@@ -32,7 +32,7 @@ app.get("/categories", async (req, res) => {
   }
 });
 
-//----- INSERIR CATEGORIAS -----
+//------------------------- INSERIR CATEGORIAS -------------------------
 
 app.post("/categories", async (req, res) => {
   const schema = Joi.object({
@@ -61,7 +61,7 @@ app.post("/categories", async (req, res) => {
   }
 });
 
-//----- LISTAR JOGOS -----
+//------------------------- LISTAR JOGOS -------------------------
 
 app.get("/games", async (req, res) => {
   const { name } = req.query;
@@ -81,7 +81,7 @@ app.get("/games", async (req, res) => {
   }
 });
 
-//----- INSERIR JOGOS -----
+//------------------------- INSERIR JOGOS -------------------------
 
 app.post("/games", async (req, res) => {
   const result = await connection.query("SELECT id FROM categories");
@@ -126,7 +126,7 @@ app.post("/games", async (req, res) => {
   }
 });
 
-//----- LISTAR CLIENTES -----
+//------------------------- LISTAR CLIENTES -------------------------
 
 app.get("/customers", async (req, res) => {
   const { cpf } = req.query;
@@ -143,11 +143,27 @@ app.get("/customers", async (req, res) => {
   }
 });
 
-//----- LISTAR CLIENTES POR ID -----
+//------------------------- LISTAR CLIENTES POR ID -------------------------
 
-app.get("/customers:id", async (req, res) => {});
+app.get("/customers/:id", async (req, res) => {
+  const { id } = req.params;
 
-//----- INSERIR CLIENTES -----
+  try {
+    const result = await connection.query(
+      "SELECT * FROM customers WHERE id = $1",
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.sendStatus(404);
+    }
+    res.send(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  }
+});
+
+//------------------------- INSERIR CLIENTES -------------------------
 
 app.post("/customers", async (req, res) => {
   const extendedJoi = Joi.extend(JoiDate);
@@ -181,13 +197,13 @@ app.post("/customers", async (req, res) => {
   }
 });
 
-//----- ROTA DE TESTE ----- (APAGAR DEPOIS)
+//------------------------- ROTA DE TESTE ------------------------- (APAGAR DEPOIS)
 
 app.get("/", (req, res) => {
   res.send("Testandoooooo");
 });
 
-//----- PORTA DO SERVIDOR -----
+//------------------------- PORTA DO SERVIDOR -------------------------
 
 app.listen(4000, () => {
   console.log("Server running on port 4000!!!!");
