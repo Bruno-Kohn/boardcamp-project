@@ -3,6 +3,7 @@ import cors from "cors";
 import pg from "pg";
 import Joi from "joi";
 import JoiDate from "@joi/date";
+import dayjs from "dayjs";
 
 const app = express();
 app.use(cors());
@@ -167,6 +168,7 @@ app.get("/customers/:id", async (req, res) => {
 
 app.post("/customers", async (req, res) => {
   const extendedJoi = Joi.extend(JoiDate);
+
   const schema = Joi.object({
     cpf: Joi.string().alphanum().min(11).max(11).required(),
     phone: Joi.string().alphanum().min(10).max(11).required(),
@@ -202,6 +204,7 @@ app.post("/customers", async (req, res) => {
 app.put("/customers/:id", async (req, res) => {
   const { id } = req.params;
   const extendedJoi = Joi.extend(JoiDate);
+
   const schema = Joi.object({
     cpf: Joi.string().alphanum().min(11).max(11).required(),
     phone: Joi.string().alphanum().min(10).max(11).required(),
@@ -232,8 +235,72 @@ app.put("/customers/:id", async (req, res) => {
   }
 });
 
+//------------------------- LISTAR ALUGUEL -------------------------
+
+app.get("/rentals", async (req, res) => {
+  const result = await connection.query(`SELECT * FROM rentals;`);
+  res.send(result.rows[0]);
+});
+
+//------------------------- INSERIR ALUGUEL -------------------------
+
+app.post("/rentals", async (req, res) => {
+  const { customerId, gameId, daysRented } = req.body;
+  const rentDate = dayjs().format("YYYY-MM-DD");
+  const returnDate = null;
+  const delayFee = null;
+
+  try {
+    const price = await connection.query(`SELECT * FROM games WHERE id = $1`, [
+      gameId,
+    ]);
+    const originalPrice = price.rows[0].pricePerDay * daysRented;
+
+    const customer = await connection.query(
+      `SELECT * FROM customers WHERE id =$1`,
+      [customerId]
+    );
+    if (customer.rows.length === 0) {
+      return res.sendStatus(400);
+    }
+
+    const game = await connection.query(`SELECT * FROM games WHERE id = $1`, [
+      gameId,
+    ]);
+    if (game.rows.length === 0) {
+      return res.sendStatus(400);
+    }
+
+    const result = await connection.query(
+      `INSERT INTO rentals ("customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        customerId,
+        gameId,
+        rentDate,
+        daysRented,
+        returnDate,
+        originalPrice,
+        delayFee,
+      ]
+    );
+
+    res.sendStatus(201);
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  }
+});
+
+//------------------------- FINALIZAR ALUGUEL -------------------------
+
+app.post("/rentals/:id/return", async (req, res) => {});
+
+//------------------------- APAGAR ALUGUEL -------------------------
+
+app.delete("/rentals/:id", async (req, res) => {});
+
 //------------------------- PORTA DO SERVIDOR -------------------------
 
 app.listen(4000, () => {
-  console.log("Server running on port 4000!!!!");
+  console.log("Server running on port 4000.");
 });
