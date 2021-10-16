@@ -129,14 +129,23 @@ app.post("/games", async (req, res) => {
 //----- LISTAR CLIENTES -----
 
 app.get("/customers", async (req, res) => {
-    const result = await connection.query("SELECT * FROM customers");
+  const { cpf } = req.query;
+  const searchedCustomer = cpf ? ` WHERE customers.cpf ILIKE '${cpf}%';` : ";";
+
+  try {
+    const result = await connection.query(
+      `SELECT * FROM customers${searchedCustomer}`
+    );
     res.send(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  }
 });
 
 //----- LISTAR CLIENTES POR ID -----
 
-app.get("/customers:id", async (req, res) => {
-});
+app.get("/customers:id", async (req, res) => {});
 
 //----- INSERIR CLIENTES -----
 
@@ -146,7 +155,7 @@ app.post("/customers", async (req, res) => {
     cpf: Joi.string().alphanum().min(11).max(11).required(),
     phone: Joi.string().alphanum().min(10).max(11).required(),
     name: Joi.string().min(1).required(),
-    birthday: extendedJoi.date().format('YYYY-MM-DD').required(), //REVER O FORMATO DA DATA
+    birthday: extendedJoi.date().format("YYYY-MM-DD").required(),
   });
 
   try {
@@ -162,7 +171,7 @@ app.post("/customers", async (req, res) => {
     }
 
     await connection.query(
-      'INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4);',
+      "INSERT INTO customers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4);",
       [name, phone, cpf, birthday]
     );
     res.sendStatus(201);
