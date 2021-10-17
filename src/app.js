@@ -157,7 +157,7 @@ app.get("/customers/:id", async (req, res) => {
     if (result.rows.length === 0) {
       return res.sendStatus(404);
     }
-    res.send(result.rows);
+    res.send(result.rows[0]);
   } catch (error) {
     console.log(error);
     res.sendStatus(500);
@@ -356,14 +356,86 @@ app.post("/rentals", async (req, res) => {
 
 //------------------------- FINALIZAR ALUGUEL -------------------------
 
-app.post("/rentals/:id/return", async (req, res) => {});
+app.post("/rentals/:id/return", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await connection.query(
+      `SELECT * FROM rentals WHERE id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.sendStatus(404);
+    }
+
+    if (result.rows[0].returnDate !== null) {
+      return res.sendStatus(400);
+    }
+
+    let { daysRented, rentDate, returnDate, delayFee } = result.rows[0];
+
+    const day = 24; // 24 hours per day
+    const hour = 60; // 60 minutes per hour
+    const minute = 60; // 60 seconds per minute
+    const millisecond = 1000; // 1000 milliseconds per second
+    const millisecondsPerDay = day * hour * minute * millisecond; // 86.400.000
+    const millisecondsRentPeriod = daysRented * millisecondsPerDay;
+
+    returnDate = dayjs().format("YYYY-MM-DD");
+
+    const millisecondsReturnPeriod =
+      new Date(returnDate).valueOf() - new Date(rentDate).valueOf();
+
+    const millisecondsCalc = millisecondsRentPeriod - millisecondsReturnPeriod;
+
+    if (millisecondsCalc >= 0) {
+      delayFee = 0;
+    } else {
+      const pricePerDay = originalPrice / daysRented;
+      delayFee = pricePerDay * (-millisecondsCalc / miliSecondsOneDay);
+    }
+
+    await connection.query(
+      `
+            UPDATE rentals
+            SET "returnDate" = $1, "delayFee" = $2
+            WHERE id = $3`,
+      [returnDate, delayFee, id]
+    );
+    res.sendStatus(200);
+  } catch (err) {
+    console.log(err.message);
+    res.sendStatus(500);
+  }
+});
 
 //------------------------- APAGAR ALUGUEL -------------------------
 
-app.delete("/rentals/:id", async (req, res) => {});
+app.delete("/rentals/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await connection.query(`SELECT * FROM rentals WHERE id = $1`, [id]);
+
+    if(result.rows.length === 0) {
+      return res.sendStatus(404);
+    }
+
+    if(result.rows[0].returnDate !== null) {
+      return res.sendStatus(400);
+    }
+
+    await connection.query(`DELETE FROM rentals WHERE id = $1`, [id]);
+    res.sendStatus(200);
+
+  } catch (error) {
+    console.log(error);
+    return res.sendStatus(500);
+  }
+});
 
 //------------------------- PORTA DO SERVIDOR -------------------------
 
 app.listen(4000, () => {
-  console.log("Server running on port 4000.");
+  console.log("Server running on port 4000");
 });
