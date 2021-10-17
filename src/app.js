@@ -66,16 +66,26 @@ app.post("/categories", async (req, res) => {
 
 app.get("/games", async (req, res) => {
   const { name } = req.query;
-  const searchedGames = name ? ` WHERE games.name ILIKE '${name}%'` : "";
+  console.log(name);
 
   try {
-    const result = await connection.query(`
-      SELECT games.*, categories.name AS "categoryName" 
-      FROM games JOIN categories
-      ON games."categoryId" = categories.id
-      ${searchedGames}
-    `);
-    res.send(result.rows);
+    if (name !== undefined) {
+      const result = await connection.query(
+        `
+        SELECT games.*, categories.name AS "categoryName" 
+        FROM games JOIN categories
+        ON games."categoryId" = categories.id
+        WHERE games.name ILIKE $1`,
+        [name + "%"]
+      );
+      res.send(result.rows);
+    } else {
+      const result = await connection.query(`
+        SELECT games.*, categories.name AS "categoryName" 
+        FROM games JOIN categories
+        ON games."categoryId" = categories.id`);
+      res.send(result.rows);
+    }
   } catch (error) {
     console.log(error);
     res.sendStatus(500);
@@ -131,13 +141,18 @@ app.post("/games", async (req, res) => {
 
 app.get("/customers", async (req, res) => {
   const { cpf } = req.query;
-  const searchedCustomer = cpf ? ` WHERE customers.cpf ILIKE '${cpf}%';` : ";";
 
   try {
-    const result = await connection.query(
-      `SELECT * FROM customers${searchedCustomer}`
-    );
-    res.send(result.rows);
+    if (cpf) {
+      const result = await connection.query(
+        `SELECT * FROM customers WHERE customers.cpf ILIKE $1`,
+        [cpf + "%"]
+      );
+      res.send(result.rows);
+    } else {
+      const result = await connection.query(`SELECT * FROM customers`);
+      res.send(result.rows);
+    }
   } catch (error) {
     console.log(error);
     res.sendStatus(500);
@@ -334,8 +349,15 @@ app.post("/rentals", async (req, res) => {
       return res.sendStatus(400);
     }
 
+    /*
+      verificar se existem jogos disponiveis (pedido de alugueis acima da quantidade de jogos em estoque)
+      se nao tiver disponivel -> return status 400
+    */
+
     const result = await connection.query(
-      `INSERT INTO rentals ("customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO rentals 
+        ("customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") 
+        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         customerId,
         gameId,
@@ -415,19 +437,21 @@ app.delete("/rentals/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await connection.query(`SELECT * FROM rentals WHERE id = $1`, [id]);
+    const result = await connection.query(
+      `SELECT * FROM rentals WHERE id = $1`,
+      [id]
+    );
 
-    if(result.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.sendStatus(404);
     }
 
-    if(result.rows[0].returnDate !== null) {
+    if (result.rows[0].returnDate !== null) {
       return res.sendStatus(400);
     }
 
     await connection.query(`DELETE FROM rentals WHERE id = $1`, [id]);
     res.sendStatus(200);
-
   } catch (error) {
     console.log(error);
     return res.sendStatus(500);
