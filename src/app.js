@@ -338,6 +338,7 @@ app.post("/rentals", async (req, res) => {
       `SELECT * FROM customers WHERE id =$1`,
       [customerId]
     );
+
     if (customer.rows.length === 0) {
       return res.sendStatus(400);
     }
@@ -349,10 +350,14 @@ app.post("/rentals", async (req, res) => {
       return res.sendStatus(400);
     }
 
-    /*
-      verificar se existem jogos disponiveis (pedido de alugueis acima da quantidade de jogos em estoque)
-      se nao tiver disponivel -> return status 400
-    */
+    const rentalsCheck = await connection.query(
+      `SELECT * FROM rentals WHERE "gameId" = $1`,
+      [gameId]
+    );
+
+    if (game.rows[0].stockTotal - rentalsCheck.rows.length < 1) {
+      return res.sendStatus(400);
+    }
 
     const result = await connection.query(
       `INSERT INTO rentals 
